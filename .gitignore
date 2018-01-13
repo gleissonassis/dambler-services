@@ -1,3 +1,6 @@
+coverage
+.idea
+
 # Logs
 logs
 *.log
@@ -29,7 +32,7 @@ bower_components
 # node-waf configuration
 .lock-wscript
 
-# Compiled binary addons (http://nodejs.org/api/addons.html)
+# Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
 # Dependency directories
@@ -44,6 +47,8 @@ typings/
 
 # Optional eslint cache
 .eslintcache
+coverage
+**/.idea
 
 # Optional REPL history
 .node_repl_history
@@ -57,3 +62,6 @@ typings/
 # dotenv environment variables file
 .env
 
+*.private.js
+.DS_Store
+package-lock.json

@@ -1,0 +1,46 @@
+{
+  "name": "dambler-services",
+  "version": "1.0.0",
+  "description": "The back-end for Dambler project",
+  "main": "src/server.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "istanbul cover --reporter=html ./node_modules/mocha/bin/_mocha -- -R spec --recursive"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gleissonassis/dambler-services.git"
+  },
+  "author": "Gleisson de Assis <gleisson.assis@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gleissonassis/dambler-services/issues"
+  },
+  "homepage": "https://github.com/gleissonassis/dambler-services#readme",
+  "devDependencies": {
+    "eslint": "^4.6.1",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.5.3",
+    "sinon": "^3.3.0"
+  },
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "chai": "^4.1.2",
+    "cors": "^2.8.4",
+    "deepmerge": "^2.0.1",
+    "express": "^4.15.5",
+    "express-load": "^1.1.16",
+    "jsonwebtoken": "^8.1.0",
+    "method-override": "^2.3.9",
+    "mongodb": "^2.2.31",
+    "mongoose": "^4.11.13",
+    "morgan": "^1.8.2",
+    "promise": "^8.0.1",
+    "request": "^2.81.0",
+    "supertest": "^3.0.0",
+    "winston": "^2.3.1"
+  }
+}
