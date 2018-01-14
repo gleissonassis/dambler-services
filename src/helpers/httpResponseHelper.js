@@ -7,6 +7,9 @@ module.exports = function(req, res){
   return {
     error: function(e) {
       if (e && e.status) {
+        if (e.status === 401 && !e.message) {
+          e.message = 'You do not have valid authentication credentials for the target resource';
+        }
         _status(e.status, e);
       } else {
         _status(500, e);

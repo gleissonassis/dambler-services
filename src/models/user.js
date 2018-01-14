@@ -48,12 +48,15 @@ module.exports = function(){
           type: Number
         },
         description: {
-          required: true,
+          required: false,
           type: String
         },
         transactionType: {
           require: true,
           type: Number
+        },
+        auctionId: {
+          type: mongoose.Schema.Types.ObjectId
         }
       }],
     },

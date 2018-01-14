@@ -2,17 +2,12 @@ var request               = require('supertest');
 var chai                  = require('chai');
 var expect                = chai.expect;
 var UserBO                = require('../../../src/business/userBO');
-var UserBO                = require('../../../src/business/userBO');
 var DAOFactory            = require('../../../src/daos/daoFactory');
-var ModelParser           = require('../../../src/models/modelParser');
-var JWTHelper             = require('../../../src/helpers/jwtHelper');
 
 describe('api', function(){
   var server;
   var bo = new UserBO({
-    userDAO: DAOFactory.getDAO('user'),
-    modelParser: new ModelParser(),
-    jwtHelper: new JWTHelper()
+    userDAO: DAOFactory.getDAO('user')
   });
 
   before(function(){
@@ -26,6 +21,48 @@ describe('api', function(){
   });
 
   describe('/v1/users', function(){
+    describe('basic token validation', function(){
+      it('should fail to perform GET to the route /users without a token (403)', function() {
+        return request(server)
+          .get('/v1/users')
+          .set('Accept', 'application/json')
+          .expect('Content-Type', /json/)
+          .expect(403);
+      });
+
+      it('should fail to perform GET to the route /users/me without a token (403)', function() {
+        return request(server)
+          .get('/v1/users')
+          .set('Accept', 'application/json')
+          .expect('Content-Type', /json/)
+          .expect(403);
+      });
+
+      it('should fail to perform PUT to the route /users/me without a token (403)', function() {
+        return request(server)
+          .put('/v1/users/me')
+          .set('Accept', 'application/json')
+          .expect('Content-Type', /json/)
+          .expect(403);
+      });
+
+      it('should not fail to perform POST to the route /auctions without a token (422)', function() {
+        return request(server)
+          .post('/v1/users')
+          .set('Accept', 'application/json')
+          .expect('Content-Type', /json/)
+          .expect(422);
+      });
+
+      it('should not fail to perform POST to the route /auctions without a token (422)', function() {
+        return request(server)
+          .post('/v1/users/auth')
+          .set('Accept', 'application/json')
+          .expect('Content-Type', /json/)
+          .expect(422);
+      });
+    });
+
     it('should fail to list users without a valid token', function() {
       return request(server)
         .get('/v1/users')
@@ -122,6 +159,35 @@ describe('api', function(){
         });
     });
 
+    it('should return the current user accessing the rout /me', function() {
+      var token = null;
+      return request(server)
+        .post('/v1/users/auth')
+        .send({
+          email: 'newemail@gmail.com',
+          password: '123456'
+        })
+        .set('Accept', 'application/json')
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .then(function(res){
+          token = res.body.token;
+
+          return request(server)
+            .get('/v1/users/me')
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + token)
+            .expect('Content-Type', /json/)
+            .expect(200);
+        }).then(function(res){
+          expect(res.body.name).to.be.equal('User');
+          expect(res.body.email).to.be.equal('newemail@gmail.com');
+          expect(res.body.role).to.be.equal('user');
+          expect(res.body.password).to.be.undefined;
+          expect(res.body.wallet).to.not.undefined;
+        });
+    });
+
     it('should list users with a valid token', function() {
       var token = null;
       return request(server)
@@ -191,12 +257,12 @@ describe('api', function(){
             .expect('Content-Type', /json/)
             .expect(200)
             .then(function(res) {
-              expect(res.body.length).to.be.equal(3);
+              expect(res.body.length).to.be.equal(4);
             });
         });
     });
 
-    it('should store a transaction', function() {
+    it('should fail to store a transaction to a empyt wallet', function() {
       var token = null;
       var id = null;
       return request(server)
@@ -209,14 +275,37 @@ describe('api', function(){
         .expect('Content-Type', /json/)
         .expect(200)
         .then(function(res){
-          expect(res.body).to.have.property('id');
-          expect(res.body.name).to.be.equal('User');
-          expect(res.body.email).to.be.equal('newemail@gmail.com');
-          expect(res.body.role).to.be.equal('user');
-          expect(res.body.password).to.be.undefined;
+          token = res.body.token;
+          id = res.body.id;
 
-          return res;
+          return request(server)
+            .post('/v1/users/' + id + '/wallet/transactions')
+            .send({
+              date: Date.now(),
+              transactionType: 0,
+              coins: 10,
+              averageValue: 1,
+              description: 'Transaction'
+            })
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + token)
+            .expect('Content-Type', /json/)
+            .expect(409);
+        });
+    });
+
+    it('should fail to store a credit transaction without a valid admin token', function() {
+      var token = null;
+      var id = null;
+      return request(server)
+        .post('/v1/users/auth')
+        .send({
+          email: 'newemail@gmail.com',
+          password: '123456'
         })
+        .set('Accept', 'application/json')
+        .expect('Content-Type', /json/)
+        .expect(200)
         .then(function(res){
           token = res.body.token;
           id = res.body.id;
@@ -233,10 +322,7 @@ describe('api', function(){
             .set('Accept', 'application/json')
             .set('Authorization', 'Bearer ' + token)
             .expect('Content-Type', /json/)
-            .expect(200)
-            .then(function(res) {
-              console.log(res.body);
-            });
+            .expect(401);
         });
     });
 

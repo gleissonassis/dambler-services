@@ -8,6 +8,10 @@ module.exports = function(app) {
     .get(expressHelper.requireLogin, controller.getAll)
     .post(controller.save);
 
+  app.route('/v1/users/me')
+    .put(expressHelper.requireLogin, controller.updateMe)
+    .get(expressHelper.requireLogin, controller.getMe);
+
   app.route('/v1/users/auth')
     .post(controller.auth);
 
@@ -17,8 +21,8 @@ module.exports = function(app) {
     .delete(expressHelper.requireSameUser, controller.delete);
 
   app.route('/v1/users/:id/login-history')
-    .get(controller.getLoginHistory);
+    .get(expressHelper.requireSameUser, controller.getLoginHistory);
 
   app.route('/v1/users/:id/wallet/transactions')
-    .post(controller.addTransaction);
+    .post(expressHelper.requireSameUser, controller.addTransaction);
 };

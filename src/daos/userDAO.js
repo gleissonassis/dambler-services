@@ -1,6 +1,7 @@
 var logger              = require('winston');
 var model               = require('../models/user')();
 var Promise             = require('promise');
+var $                   = require('mongo-dot-notation');
 
 module.exports = function() {
   var projectionAllFields = {
@@ -8,6 +9,15 @@ module.exports = function() {
     __v: false,
     isEnabled: false
   };
+
+  projectionCommonWithWallet = {
+    password: false,
+    __v: false,
+    isEnabled: false,
+    loginHistory: false,
+    isEnabled: false
+  };
+
   var projectionCommonFields = {
     password: false,
     __v: false,
@@ -60,7 +70,7 @@ module.exports = function() {
     save: function(entity) {
       var self = this;
       return new Promise(function(resolve, reject) {
-        logger.log('info', 'Creating a new user', JSON.stringify(entity));
+        logger.log('info', 'Creating an new user', JSON.stringify(entity));
         model.create(entity)
         .then(function(item) {
           logger.log('info', 'The user has been created succesfully', JSON.stringify(item));
@@ -82,7 +92,7 @@ module.exports = function() {
       return new Promise(function(resolve, reject) {
         logger.log('info', 'Update a user');
 
-        model.findByIdAndUpdate(entity._id, entity, {'new': true, fields: projectionCommonFields})
+        model.findByIdAndUpdate(entity._id, $.flatten(entity), {'new': true, fields: projectionCommonFields})
         .then(function(item) {
           logger.log('info', 'The user has been updated succesfully');
           logger.debug(JSON.stringify(item.toObject()));
@@ -120,14 +130,14 @@ module.exports = function() {
 
     disable: function(id) {
       return new Promise(function(resolve, reject) {
-        logger.log('info', 'Disabling a user');
+        logger.log('info', 'Disabling an user');
 
         model.findByIdAndUpdate(id, {_id:id, isEnabled: false}, {'new': true, fields: projectionCommonFields})
         .then(function(item) {
           logger.log('info', 'The user has been disabled succesfully');
           resolve(item.toObject());
         }).catch(function(error) {
-          logger.error('An error has ocurred while updateing an user', error);
+          logger.error('An error has ocurred while disabling an user', error);
           reject({
             status: 422,
             message: error
@@ -179,17 +189,17 @@ module.exports = function() {
           };
         }
 
-        model.findByIdAndUpdate(userId, options, {'new': true, fields: projectionCommonFields})
-        .then(function(item) {
-          logger.log('info', 'The transaction has been added to the user wallet');
-          resolve(item.toObject());
-        }).catch(function(error) {
-          logger.error('An error has ocurred while adding the transaction', error);
-          reject({
-            status: 422,
-            message: error
+        model.findByIdAndUpdate(userId, options, {'new': true, fields: projectionCommonWithWallet})
+          .then(function(item) {
+            logger.log('info', 'The transaction has been added to the user wallet');
+            resolve(item.toObject());
+          }).catch(function(error) {
+            logger.error('An error has ocurred while adding the transaction', error);
+            reject({
+              status: 422,
+              message: error
+            });
           });
-        });
       });
     },
   };

@@ -27,13 +27,12 @@ module.exports = function() {
         if (o.id !== undefined) {
           delete o.id;
         }
+
+        o.isEnabled = true;
       } else {
         o._id = o.id;
         delete o.id;
-      }
-
-      if (o.isEnabled === undefined) {
-        o.isEnabled = true;
+        delete o.isEnabled;
       }
 
       return o;

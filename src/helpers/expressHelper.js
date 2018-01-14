@@ -26,21 +26,16 @@ module.exports = function() {
     },
 
     requireLogin: function(req, res, next) {
-      try {
-        if (req.currentUser) {
-          logger.info('There is a current user logged in');
-          next();
-        } else {
-          logger.info('There is no user logged in');
-          res.status(403).json({});
-        }
-      } catch (e) {
-        logger.error('An error has occurred while requiring login', e);
+      if (req.currentUser) {
+        logger.info('There is a current user logged in');
+        next();
+      } else {
+        logger.info('There is no user logged in');
+        res.status(403).json({});
       }
     },
 
     requireAdmin: function(req, res, next) {
-
       if (req.currentUser) {
         if (req.currentUser.role === 'admin') {
           next();

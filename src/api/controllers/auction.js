@@ -1,18 +1,25 @@
-var UserBO                = require('../../business/userBO');
+var AuctionBO             = require('../../business/auctionBO');
+var UserBO                = require('../../business/UserBO');
 var DAOFactory            = require('../../daos/daoFactory');
 var HTTPResponseHelper    = require('../../helpers/httpResponseHelper');
 var ModelParser           = require('../../models/modelParser');
-var JWTHelper             = require('../../helpers/jwtHelper');
 var UserHelper            = require('../../helpers/userHelper');
 
 module.exports = function() {
   var modelParser = new ModelParser();
+  var userHelper = new UserHelper();
 
-  var business = new UserBO({
+  var userBO = new UserBO({
     userDAO: DAOFactory.getDAO('user'),
     modelParser: modelParser,
-    jwtHelper: new JWTHelper(),
-    userHelper: new UserHelper()
+    userHelper: userHelper
+  });
+
+  var business = new AuctionBO({
+    auctionDAO: DAOFactory.getDAO('auction'),
+    userBO: userBO,
+    modelParser: modelParser,
+    userHelper: userHelper,
   });
 
   return {
@@ -36,8 +43,8 @@ module.exports = function() {
 
     update: function(req, res) {
       var rh = new HTTPResponseHelper(req, res);
-      req.body.id = req.params.id;
       business.setCurrentUser(req.currentUser);
+      req.body.id = req.params.id;
       business.update(req.body)
         .then(rh.ok)
         .catch(rh.error);
@@ -51,23 +58,6 @@ module.exports = function() {
         .catch(rh.error);
     },
 
-    updateMe: function(req, res) {
-      var rh = new HTTPResponseHelper(req, res);
-      business.setCurrentUser(req.currentUser);
-      req.body.id = req.currentUser.id;
-      business.update(req.body)
-        .then(rh.ok)
-        .catch(rh.error);
-    },
-
-    getMe: function(req, res) {
-      var rh = new HTTPResponseHelper(req, res);
-      business.setCurrentUser(req.currentUser);
-      business.getById(req.currentUser.id, true)
-        .then(rh.ok)
-        .catch(rh.error);
-    },
-
     delete: function(req, res) {
       var rh = new HTTPResponseHelper(req, res);
       business.setCurrentUser(req.currentUser);
@@ -76,30 +66,24 @@ module.exports = function() {
         .catch(rh.error);
     },
 
-    auth: function(req, res) {
+    getOnlineAuctions: function(req, res) {
       var rh = new HTTPResponseHelper(req, res);
       business.setCurrentUser(req.currentUser);
-      business.generateToken(req.body.email, req.body.password, {
+      business.getOnlineAuctions()
+        .then(rh.ok)
+        .catch(rh.error);
+    },
+
+    addBid: function(req, res) {
+      var rh = new HTTPResponseHelper(req, res);
+      business.setCurrentUser(req.currentUser);
+      business.addBid(req.params.id, req.currentUser.id, {
         ip: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress,
         userAgent: req.headers['user-agent']
       })
-        .then(rh.ok)
-        .catch(rh.error);
-    },
-
-    getLoginHistory: function(req, res) {
-      var rh = new HTTPResponseHelper(req, res);
-      business.setCurrentUser(req.currentUser);
-      business.getLoginHistory(req.params.id)
-        .then(rh.ok)
-        .catch(rh.error);
-    },
-
-    addTransaction: function(req, res) {
-      var rh = new HTTPResponseHelper(req, res);
-      business.setCurrentUser(req.currentUser);
-      business.addTransaction(req.params.id, req.body)
-        .then(rh.ok)
+        .then(function() {
+          rh.created();
+        })
         .catch(rh.error);
     }
   };
