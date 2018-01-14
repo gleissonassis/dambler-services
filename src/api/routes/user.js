@@ -15,4 +15,10 @@ module.exports = function(app) {
     .get(controller.getById)
     .put(expressHelper.requireSameUser, controller.update)
     .delete(expressHelper.requireSameUser, controller.delete);
+
+  app.route('/v1/users/:id/login-history')
+    .get(controller.getLoginHistory);
+
+  app.route('/v1/users/:id/wallet/transactions')
+    .post(controller.addTransaction);
 };

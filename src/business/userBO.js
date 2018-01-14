@@ -52,6 +52,11 @@ module.exports = function(dependencies) {
                 o.role = 'user';
               }
 
+              o.wallet = {
+                coins: 0,
+                averageValue: 0
+              };
+
               return userDAO.save(o);
             } else {
               throw {
@@ -164,12 +169,20 @@ module.exports = function(dependencies) {
       });
     },
 
-    generateToken: function(email, password) {
+    generateToken: function(email, password, info) {
       var self = this;
       return new Promise(function(resolve, reject) {
         self.getByLogin(email, password)
           .then(function(user) {
             if (user) {
+              return userDAO.addLoginToHistory(user.id, info.ip, info.userAgent);
+            } else {
+              return null;
+            }
+          })
+          .then(function(user) {
+            if (user) {
+              user = modelParser.clearUser(user);
               user.token = jwtHelper.createToken(user);
               return user;
             } else {
@@ -179,7 +192,9 @@ module.exports = function(dependencies) {
               };
             }
           })
-          .then(resolve)
+          .then(function(user) {
+            resolve(modelParser.clearUser(user));
+          })
           .catch(reject);
       });
     },
@@ -195,13 +210,80 @@ module.exports = function(dependencies) {
                 status: 404,
                 message: 'User not found'
               };
-            } else if (!self.userIsAdministrator(self.currentUser) && self.currentUser.id !== user.id) {
+            } else if (!self.userIsAdministrator(self.currentUser) && self.currentUser.id !== user.id.toString()) {
                 throw {
                   status: 404,
                   message: 'User not found'
                 };
             } else {
               return userDAO.disable(id);
+            }
+          })
+          .then(resolve)
+          .catch(reject);
+      });
+    },
+
+    getLoginHistory: function(id) {
+      var self = this;
+
+      return new Promise(function(resolve, reject) {
+        userDAO.getById(id, true)
+          .then(function(user) {
+            if (user) {
+              console.log(typeof self.currentUser.id , typeof user._id.toString());
+              if (!self.userIsAdministrator(self.currentUser) && self.currentUser.id !== user._id.toString()) {
+                logger.warn('An user is trying to see the history from another user');
+                logger.debug('Current user', JSON.stringify(self.currentUser));
+                logger.debug('Target user', JSON.stringify(user));
+                throw {
+                  status: 404,
+                  message: 'User not found'
+                };
+              } else {
+                return user.loginHistory;
+              }
+            } else {
+              logger.warn('User not found');
+              throw {
+                status: 404,
+                message: 'User not found'
+              };
+            }
+          })
+          .then(resolve)
+          .catch(reject);
+      });
+    },
+
+    addTransaction: function(userId, transaction) {
+      var self = this;
+
+      return new Promise(function(resolve, reject) {
+        userDAO.getById(userId, true)
+          .then(function(user) {
+            if (user) {
+              if (!self.userIsAdministrator(self.currentUser) && self.currentUser.id !== user._id.toString()) {
+                  throw {
+                    status: 404,
+                    message: 'User not found'
+                  };
+              } else {
+                var newAvarageValue = undefined;
+                if (transaction.transactionType === 1) {
+                  if (user.wallet.averageValue === 0 && user.wallet.coins === 0) {
+                    newAvarageValue = transaction.averageValue;
+                  } else {
+                    newAvarageValue = (user.wallet.averageValue + transaction.averageValue) / 2;
+                  }
+                }
+                return userDAO.addTransaction(userId, transaction,newAvarageValue);
+              }
+            } else {
+              throw {
+                status: 404,
+                message: 'User not found'
+              };
             }
           })
           .then(resolve)

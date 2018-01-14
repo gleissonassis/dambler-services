@@ -3,6 +3,20 @@ var model               = require('../models/user')();
 var Promise             = require('promise');
 
 module.exports = function() {
+  var projectionAllFields = {
+    password: false,
+    __v: false,
+    isEnabled: false
+  };
+  var projectionCommonFields = {
+    password: false,
+    __v: false,
+    isEnabled: false,
+    wallet: false,
+    loginHistory: false,
+    isEnabled: false
+  };
+
   return {
     clear: function() {
       return new Promise(function(resolve, reject) {
@@ -18,11 +32,19 @@ module.exports = function() {
       });
     },
 
-    getAll: function(filter) {
+    getAll: function(filter, allFields) {
       return new Promise(function(resolve, reject) {
         logger.info('Getting users from database', filter);
 
-        model.find(filter)
+        var projection = {};
+
+        if (!allFields) {
+          projection = Object.assign({}, projectionCommonFields);
+        } else {
+          projection = Object.assign({}, projectionAllFields);
+        }
+
+        model.find(filter, projection)
           .lean()
           .exec()
           .then(function(items) {
@@ -36,14 +58,16 @@ module.exports = function() {
     },
 
     save: function(entity) {
+      var self = this;
       return new Promise(function(resolve, reject) {
-        logger.log('info', 'Creating a new user', entity);
-
+        logger.log('info', 'Creating a new user', JSON.stringify(entity));
         model.create(entity)
         .then(function(item) {
           logger.log('info', 'The user has been created succesfully', JSON.stringify(item));
-          resolve(item.toObject());
-        }).catch(function(error) {
+          return self.getById(item._id);
+        })
+        .then(resolve)
+        .catch(function(error) {
           logger.error('An error has ocurred while saving a new user', error);
           reject({
             status: 422,
@@ -58,7 +82,7 @@ module.exports = function() {
       return new Promise(function(resolve, reject) {
         logger.log('info', 'Update a user');
 
-        model.findByIdAndUpdate(entity._id, entity, {'new': true})
+        model.findByIdAndUpdate(entity._id, entity, {'new': true, fields: projectionCommonFields})
         .then(function(item) {
           logger.log('info', 'The user has been updated succesfully');
           logger.debug(JSON.stringify(item.toObject()));
@@ -73,12 +97,12 @@ module.exports = function() {
       });
     },
 
-    getById: function(id) {
+    getById: function(id, allFields) {
       var self = this;
       return new Promise(function(resolve, reject) {
         logger.log('info', 'Getting a user by id %s', id);
 
-        self.getAll({_id: id, isEnabled: true})
+        self.getAll({_id: id, isEnabled: true}, allFields)
         .then(function(users) {
           if (users.length === 0) {
             resolve(null);
@@ -98,12 +122,69 @@ module.exports = function() {
       return new Promise(function(resolve, reject) {
         logger.log('info', 'Disabling a user');
 
-        model.findByIdAndUpdate(id, {_id:id, isEnabled: false}, {'new': true})
+        model.findByIdAndUpdate(id, {_id:id, isEnabled: false}, {'new': true, fields: projectionCommonFields})
         .then(function(item) {
           logger.log('info', 'The user has been disabled succesfully');
           resolve(item.toObject());
         }).catch(function(error) {
           logger.error('An error has ocurred while updateing an user', error);
+          reject({
+            status: 422,
+            message: error
+          });
+        });
+      });
+    },
+
+    addLoginToHistory: function(userId, ip, userAgent) {
+      return new Promise(function(resolve, reject) {
+        logger.log('info', 'Adding to login history of the user the attempt');
+
+        var history = {
+          date: Date.now(),
+          ip: ip,
+          userAgent: userAgent
+        };
+
+        logger.debug(history);
+
+        model.findByIdAndUpdate(userId, {$push: {loginHistory: history}}, {'new': true, fields: projectionCommonFields})
+        .then(function(item) {
+          logger.log('info', 'The history has been updated succesfully');
+          resolve(item.toObject());
+        }).catch(function(error) {
+          logger.error('An error has ocurred while updating this user login history', error);
+          reject({
+            status: 422,
+            message: error
+          });
+        });
+      });
+    },
+
+    addTransaction: function(userId, transaction, newAvarageValue) {
+      return new Promise(function(resolve, reject) {
+        logger.log('info', 'Adding to wallet the transaction');
+
+        logger.debug(transaction);
+
+        var options = {
+          $push: {'wallet.transactions': transaction},
+          $inc: {'wallet.coins': transaction.transactionType === 1 ? transaction.coins : -transaction.coins}
+        };
+
+        if (newAvarageValue !== undefined) {
+          options['$set'] = {
+            'wallet.averageValue': newAvarageValue
+          };
+        }
+
+        model.findByIdAndUpdate(userId, options, {'new': true, fields: projectionCommonFields})
+        .then(function(item) {
+          logger.log('info', 'The transaction has been added to the user wallet');
+          resolve(item.toObject());
+        }).catch(function(error) {
+          logger.error('An error has ocurred while adding the transaction', error);
           reject({
             status: 422,
             message: error

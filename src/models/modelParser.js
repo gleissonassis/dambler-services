@@ -7,15 +7,12 @@ module.exports = function() {
         o.id = o._id.toString();
       }
       delete o._id;
-      delete o.isEnabled;
-      delete o.__v;
 
       return o;
     },
 
     clearUser: function(user) {
       var o = Object.assign({}, this.clear(user));
-      delete o.password;
 
       return o;
     },

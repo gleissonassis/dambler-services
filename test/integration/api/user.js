@@ -71,6 +71,18 @@ describe('api', function(){
         });
     });
 
+    it('should return 404 for a invalid authentication', function() {
+      return request(server)
+        .post('/v1/users/auth')
+        .send({
+          email: 'email@gmail.com',
+          password: '1234567'
+        })
+        .set('Accept', 'application/json')
+        .expect('Content-Type', /json/)
+        .expect(404);
+    });
+
     it('should update a valid user', function() {
       var token = null;
       return request(server)
@@ -144,6 +156,87 @@ describe('api', function(){
           expect(res.body[0].email).to.be.equal('newemail@gmail.com');
           expect(res.body[0].role).to.be.equal('user');
           expect(res.body[0].password).to.be.undefined;
+        });
+    });
+
+    it('should list the login history', function() {
+      var token = null;
+      var id = null;
+      return request(server)
+        .post('/v1/users/auth')
+        .send({
+          email: 'newemail@gmail.com',
+          password: '123456'
+        })
+        .set('Accept', 'application/json')
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .then(function(res){
+          expect(res.body).to.have.property('id');
+          expect(res.body.name).to.be.equal('User');
+          expect(res.body.email).to.be.equal('newemail@gmail.com');
+          expect(res.body.role).to.be.equal('user');
+          expect(res.body.password).to.be.undefined;
+
+          return res;
+        })
+        .then(function(res){
+          token = res.body.token;
+          id = res.body.id;
+
+          return request(server)
+            .get('/v1/users/' + id + '/login-history')
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + token)
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .then(function(res) {
+              expect(res.body.length).to.be.equal(3);
+            });
+        });
+    });
+
+    it('should store a transaction', function() {
+      var token = null;
+      var id = null;
+      return request(server)
+        .post('/v1/users/auth')
+        .send({
+          email: 'newemail@gmail.com',
+          password: '123456'
+        })
+        .set('Accept', 'application/json')
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .then(function(res){
+          expect(res.body).to.have.property('id');
+          expect(res.body.name).to.be.equal('User');
+          expect(res.body.email).to.be.equal('newemail@gmail.com');
+          expect(res.body.role).to.be.equal('user');
+          expect(res.body.password).to.be.undefined;
+
+          return res;
+        })
+        .then(function(res){
+          token = res.body.token;
+          id = res.body.id;
+
+          return request(server)
+            .post('/v1/users/' + id + '/wallet/transactions')
+            .send({
+              date: Date.now(),
+              transactionType: 1,
+              coins: 10,
+              averageValue: 1,
+              description: 'Transaction'
+            })
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + token)
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .then(function(res) {
+              console.log(res.body);
+            });
         });
     });
 

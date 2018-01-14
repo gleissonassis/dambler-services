@@ -24,7 +24,55 @@ module.exports = function(){
     role: {
       type: String,
       required:true,
-    }
+    },
+    wallet : {
+      coins : {
+        required: true,
+        type: Number
+      },
+      averageValue: {
+        required: true,
+        type: Number
+      },
+      transactions : [{
+        date : {
+          required: true,
+          type: Date
+        },
+        coins: {
+          required: true,
+          type: Number,
+        },
+        averageValue: {
+          required: true,
+          type: Number
+        },
+        description: {
+          required: true,
+          type: String
+        },
+        transactionType: {
+          require: true,
+          type: Number
+        }
+      }],
+    },
+    loginHistory: [
+      {
+        date: {
+          type: Date,
+          required: true
+        },
+        ip: {
+          type: String,
+          required: true,
+        },
+        userAgent: {
+          type: String,
+          required: true
+        }
+      }
+    ]
   });
 
   model = model ? model : mongoose.model('users', schema);
