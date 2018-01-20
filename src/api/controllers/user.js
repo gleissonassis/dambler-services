@@ -28,6 +28,12 @@ module.exports = function() {
       var rh = new HTTPResponseHelper(req, res);
       business.setCurrentUser(req.currentUser);
       business.save(req.body)
+        .then(function() {
+          return business.generateToken(req.body.email, req.body.password, {
+            ip: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress,
+            userAgent: req.headers['user-agent']
+          });
+        })
         .then(function(r) {
           rh.created(modelParser.clearUser(r));
         })

@@ -89,6 +89,7 @@ describe('api', function(){
           expect(res.body.email).to.be.equal('email@gmail.com');
           expect(res.body.role).to.be.equal('user');
           expect(res.body.password).to.be.undefined;
+          expect(res.body.token).to.not.be.undefined;
 
           return res;
         }).then(function(res){
@@ -105,6 +106,7 @@ describe('api', function(){
           expect(res.body.email).to.be.equal('email@gmail.com');
           expect(res.body.role).to.be.equal('user');
           expect(res.body.password).to.be.undefined;
+          expect(res.body.token).to.be.undefined;
         });
     });
 
@@ -257,7 +259,9 @@ describe('api', function(){
             .expect('Content-Type', /json/)
             .expect(200)
             .then(function(res) {
-              expect(res.body.length).to.be.equal(4);
+               //during this tests the current user has made 5 logins, of course
+               //it can be changed according to the test flow
+              expect(res.body.length).to.be.equal(5);
             });
         });
     });
