@@ -7,7 +7,10 @@ module.exports = function() {
   var projectionAllFields = {
     password: false,
     __v: false,
-    isEnabled: false
+    isEnabled: false,
+    loginHistory: false,
+    'wallet.transactions': false,
+    'wallet.averageValue': false
   };
 
   projectionCommonWithWallet = {
@@ -15,7 +18,11 @@ module.exports = function() {
     __v: false,
     isEnabled: false,
     loginHistory: false,
-    isEnabled: false
+    isEnabled: false,
+    confirmation: false,
+    internalKey: false,
+    'wallet.transactions': false,
+    'wallet.averageValue': false
   };
 
   var projectionCommonFields = {
@@ -24,7 +31,9 @@ module.exports = function() {
     isEnabled: false,
     wallet: false,
     loginHistory: false,
-    isEnabled: false
+    isEnabled: false,
+    confirmation: false,
+    internalKey: false
   };
 
   return {
@@ -92,7 +101,7 @@ module.exports = function() {
       return new Promise(function(resolve, reject) {
         logger.log('info', 'Update a user');
 
-        model.findByIdAndUpdate(entity._id, $.flatten(entity), {'new': true, fields: projectionCommonFields})
+        model.findByIdAndUpdate(entity._id, $.flatten(entity), {'new': true, fields: projectionCommonWithWallet})
         .then(function(item) {
           logger.log('info', 'The user has been updated succesfully');
           logger.debug(JSON.stringify(item.toObject()));
@@ -125,6 +134,72 @@ module.exports = function() {
             logger.log('error', 'An error has occurred while geeting an user by id %s', id, erro);
             reject(erro);
         });
+      });
+    },
+
+    getByConfirmationKey: function(id, confirmationKey) {
+      var self = this;
+      return new Promise(function(resolve, reject) {
+        logger.log('info', 'Getting a user by confirmation key %s', id);
+
+        self.getAll({_id: id, 'confirmation.key': confirmationKey, 'confirmation.isConfirmed': false, isEnabled: true})
+        .then(function(users) {
+          if (users.length === 0) {
+            logger.log('info', 'User not found');
+            return null;
+          } else {
+            logger.log('info', 'The user was found');
+            return users[0];
+          }
+        })
+        .then(resolve)
+        .catch(function(erro) {
+            logger.log('error', 'An error has occurred while geeting an user confirmation key %s', id, erro);
+            reject(erro);
+        });
+      });
+    },
+
+    getByInternalKey: function(id, internalKey) {
+      var self = this;
+      return new Promise(function(resolve, reject) {
+        logger.log('info', 'Getting a user by internal key %s', id);
+
+        self.getAll({_id: id, internalKey: internalKey, isEnabled: true})
+        .then(function(users) {
+          if (users.length === 0) {
+            logger.log('info', 'User not found');
+            return null;
+          } else {
+            logger.log('info', 'The user was found');
+            return users[0];
+          }
+        })
+        .then(resolve)
+        .catch(function(erro) {
+            logger.log('error', 'An error has occurred while geeting an user by internal key %s', id, erro);
+            reject(erro);
+        });
+      });
+    },
+
+    confirmUser: function(id, confirmationKey, info) {
+      return this.update({
+        _id: id,
+        confirmation: {
+          info: info,
+          date: new Date(),
+          key: confirmationKey,
+          isConfirmed: true
+        }
+      });
+    },
+
+    resetPassword: function(id, newInternalKey, newPassword) {
+      return this.update({
+        _id: id,
+        password: newPassword,
+        internalKey: newInternalKey
       });
     },
 

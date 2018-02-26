@@ -15,14 +15,26 @@ module.exports = function(app) {
   app.route('/v1/users/auth')
     .post(controller.auth);
 
+  app.route('/v1/users/auth/tokens')
+    .post(expressHelper.requireLogin, controller.updateToken);
+
   app.route('/v1/users/:id')
     .get(controller.getById)
     .put(expressHelper.requireSameUser, controller.update)
     .delete(expressHelper.requireSameUser, controller.delete);
+
+  app.route('/v1/users/:id/notifications')
+    .post(controller.sendNotification);
 
   app.route('/v1/users/:id/login-history')
     .get(expressHelper.requireSameUser, controller.getLoginHistory);
 
   app.route('/v1/users/:id/wallet/transactions')
     .post(expressHelper.requireSameUser, controller.addTransaction);
+
+  app.route('/v1/users/:id/confirm/:key')
+    .post(controller.confirmUser);
+
+  app.route('/v1/users/:id/reset-password/:key')
+    .post(controller.resetPassword);
 };

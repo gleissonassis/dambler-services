@@ -9,6 +9,10 @@ module.exports = function(){
       type: Date,
       required: true
     },
+    category: {
+      type: String,
+      required: true
+    },
     expiresOn: {
       type: Date,
       required: true,
@@ -72,10 +76,14 @@ module.exports = function(){
         required: true
       }
     },
+    isPublished: {
+      type: Boolean,
+      required: true,
+    },
     isEnabled : {
       type: Boolean,
       required:true,
-    },
+    }
   });
 
   model = model ? model : mongoose.model('auctions', schema);

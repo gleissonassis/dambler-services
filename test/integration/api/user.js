@@ -285,7 +285,6 @@ describe('api', function(){
           return request(server)
             .post('/v1/users/' + id + '/wallet/transactions')
             .send({
-              date: Date.now(),
               transactionType: 0,
               coins: 10,
               averageValue: 1,
@@ -317,7 +316,6 @@ describe('api', function(){
           return request(server)
             .post('/v1/users/' + id + '/wallet/transactions')
             .send({
-              date: Date.now(),
               transactionType: 1,
               coins: 10,
               averageValue: 1,

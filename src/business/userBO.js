@@ -1,15 +1,18 @@
 var Promise         = require('promise');
 var md5             = require('../helpers/md5');
 var logger          = require('../config/logger');
+var settings        = require('../config/settings');
 
 module.exports = function(dependencies) {
   var userDAO = dependencies.userDAO;
   var jwtHelper = dependencies.jwtHelper;
   var modelParser = dependencies.modelParser;
   var userHelper = dependencies.userHelper;
+  var notificationBO = dependencies.notificationBO;
 
   return {
     currentUser: {},
+    dependencies: dependencies,
 
     setCurrentUser: function(currentUser) {
       this.currentUser = currentUser;
@@ -19,11 +22,11 @@ module.exports = function(dependencies) {
       return userDAO.clear();
     },
 
-    getAll: function(filter) {
+    getAll: function(filter, allFields) {
       return new Promise(function(resolve, reject) {
         filter.isEnabled = true;
         logger.info('Listing all users by filter ', filter);
-        userDAO.getAll(filter)
+        userDAO.getAll(filter, allFields)
           .then(function(r) {
             resolve(r.map(function(item) {
               return modelParser.clearUser(item);
@@ -61,8 +64,16 @@ module.exports = function(dependencies) {
 
     save: function(entity) {
       var self = this;
-
       return new Promise(function(resolve, reject) {
+        var confirmationKey = null;
+
+        // generating a random number for confirmation key and internal key
+        var randomConfirmationKey =  new Date().getTime() * Math.random();
+        var randomInternalKey =  new Date().getTime() * Math.random();
+        logger.debug('Generating random numbers to create confirmation key and internal key',
+                     randomConfirmationKey,
+                     randomInternalKey);
+
         self.getByEmail(entity.email)
           .then(function(user) {
             if (!user) {
@@ -71,16 +82,23 @@ module.exports = function(dependencies) {
               if (o.password) {
                 o.password = md5(entity.password);
               }
-              logger.debug('Entity  after prepare: ', JSON.stringify(o));
+
+              confirmationKey = md5(randomConfirmationKey + entity.email + entity.name + entity.password);
+
+              o.confirmation = {
+                key: confirmationKey,
+                isConfirmed: false
+              };
+
+              o.internalKey = md5(randomInternalKey + confirmationKey);
 
               if (!userHelper.isAdministrator(self.currentUser)) {
                 o.role = 'user';
               }
 
-              o.wallet = {
-                coins: 0,
-                averageValue: 0
-              };
+              o.wallet = settings.dambler.initialWallet;
+
+              logger.debug('Entity  after prepare: ', JSON.stringify(o));
 
               return userDAO.save(o);
             } else {
@@ -91,8 +109,17 @@ module.exports = function(dependencies) {
             }
           })
           .then(function(r) {
-            resolve(modelParser.clearUser(r));
+            return modelParser.clearUser(r);
           })
+          .then(function(r) {
+            //this notification will not be part of the chain
+            notificationBO.sendNotification({
+              userId: r.id,
+              type: 'new-user'
+            });
+            return r;
+          })
+          .then(resolve)
           .catch(reject);
       });
     },
@@ -101,6 +128,8 @@ module.exports = function(dependencies) {
       var self = this;
 
       return new Promise(function(resolve, reject) {
+        logger.info('Updating a user ', JSON.stringify(entity));
+
         var o = modelParser.prepare(entity, false);
         self.getByEmail(entity.email)
           .then(function(user) {
@@ -120,8 +149,13 @@ module.exports = function(dependencies) {
                 o.role = 'user';
               }
 
+              // generating a new internal key for security reasons
+              o.internalKey = md5(o.internalKey + new Date());
+
               return userDAO.update(o);
             } else {
+              logger.debug('User id: ', user.id);
+              logger.debug('Entity id: ', entity.id);
               throw {
                 status: 409,
                 message: 'The email ' + entity.email + ' is already in use by other user'
@@ -168,7 +202,7 @@ module.exports = function(dependencies) {
             password: md5(password)
           };
 
-          self.getAll(filter)
+          self.getAll(filter, true)
             .then(function(users) {
               if (users.length) {
                 return users[0];
@@ -185,7 +219,7 @@ module.exports = function(dependencies) {
       });
     },
 
-    getByEmail: function(email) {
+    getByEmail: function(email, allFields) {
       var self = this;
 
       return new Promise(function(resolve, reject) {
@@ -193,7 +227,7 @@ module.exports = function(dependencies) {
           email: email
         };
 
-        self.getAll(filter)
+        self.getAll(filter, allFields)
           .then(function(users) {
             if (users.length) {
               logger.info('User found by email', JSON.stringify(users[0]));
@@ -211,15 +245,18 @@ module.exports = function(dependencies) {
       var self = this;
 
       return new Promise(function(resolve, reject) {
+        var user = null;
+
         self.getByLogin(email, password)
-          .then(function(user) {
+          .then(function(r) {
+            user = r;
             if (user) {
               return userDAO.addLoginToHistory(user.id, info.ip, info.userAgent);
             } else {
               return null;
             }
           })
-          .then(function(user) {
+          .then(function() {
             if (user) {
               user = modelParser.clearUser(user);
               user.token = jwtHelper.createToken(user);
@@ -305,7 +342,7 @@ module.exports = function(dependencies) {
               if (!userHelper.isAdministrator(self.currentUser) && self.currentUser.id !== user._id.toString()) {
                 throw {
                   status: 404,
-                  message: 'User not found'
+                  message: 'Please check if the provided user exists. User not found.'
                 };
               } else if (!userHelper.isAdministrator(self.currentUser) && transaction.transactionType === 1) {
                 //only administrators can add founds to user's wallet
@@ -329,6 +366,7 @@ module.exports = function(dependencies) {
                   if (user.wallet.coins === 0) {
                     throw {
                       status: 409,
+                      code: 2,
                       message: 'The user do not have any coins to perform a bid'
                     };
                   } else {
@@ -337,9 +375,31 @@ module.exports = function(dependencies) {
                   }
                 }
 
+                transaction.date = new Date();
+
                 //sending newAvarageValue as undefined the value will not be changed at the database
                 return userDAO.addTransaction(userId, transaction, newAvarageValue);
               }
+            } else {
+              throw {
+                status: 404,
+                message: 'Can not register the transaction. User not found.'
+              };
+            }
+          })
+          .then(function(item) {
+            resolve(modelParser.clearUser(item));
+          })
+          .catch(reject);
+      });
+    },
+
+    confirmUser: function(userId, key, info) {
+      return new Promise(function(resolve, reject) {
+        userDAO.getByConfirmationKey(userId, key)
+          .then(function(user) {
+            if (user) {
+              return userDAO.confirmUser(userId, key, info);
             } else {
               throw {
                 status: 404,
@@ -347,9 +407,50 @@ module.exports = function(dependencies) {
               };
             }
           })
-          .then(function(item) {
-            resolve(modelParser.clearUser(item));
+          .then(resolve)
+          .catch(reject);
+      });
+    },
+
+    resetPassword: function(userId, internalKey, newPassword) {
+      return new Promise(function(resolve, reject) {
+        userDAO.getByInternalKey(userId, internalKey)
+          .then(function(user) {
+            if (user) {
+              return userDAO.resetPassword(userId, md5(Math.random() + internalKey), md5(newPassword));
+            } else {
+              throw {
+                status: 404,
+                message: 'User not found'
+              };
+            }
           })
+          .then(resolve)
+          .catch(reject);
+      });
+    },
+
+    generateNewToken: function(user) {
+      var self = this;
+
+      return new Promise(function(resolve, reject) {
+        logger.info('Updating a new token for the user ', JSON.stringify(user));
+
+        self.getByEmail(user.email)
+          .then(function(user) {
+            logger.info('An user was found by email, so a new token will be generated');
+            if (user) {
+              user.token = jwtHelper.createToken(user);
+              logger.info('New token ', JSON.stringify(user));
+              return user;
+            } else {
+              throw {
+                status: 404,
+                message: 'Can not update the token. User not found'
+              };
+            }
+          })
+          .then(resolve)
           .catch(reject);
       });
     }

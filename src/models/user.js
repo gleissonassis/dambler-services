@@ -25,6 +25,29 @@ module.exports = function(){
       type: String,
       required:true,
     },
+    address: {
+      zipCode: {
+        type: String
+      },
+      street: {
+        type: String
+      },
+      number: {
+        type: String
+      },
+      informations: {
+        type: String
+      },
+      city: {
+        type: String
+      },
+      state: {
+        type: String
+      },
+      neighborhood: {
+        type: String
+      },
+    },
     wallet : {
       coins : {
         required: true,
@@ -75,7 +98,30 @@ module.exports = function(){
           required: true
         }
       }
-    ]
+    ],
+    confirmation: {
+      key: {
+        type: String
+      },
+      date: {
+        type: Date,
+      },
+      info: {
+        ip: {
+          type: String,
+        },
+        userAgent: {
+          type: String,
+        }
+      },
+      isConfirmed : {
+        type: Boolean
+      },
+    },
+    internalKey: {
+      type: String,
+      required: true
+    }
   });
 
   model = model ? model : mongoose.model('users', schema);

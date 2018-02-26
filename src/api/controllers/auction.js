@@ -26,7 +26,7 @@ module.exports = function() {
     getAll: function(req, res) {
       var rh = new HTTPResponseHelper(req, res);
       business.setCurrentUser(req.currentUser);
-      business.getAll({})
+      business.getAll(req.params.category)
         .then(rh.ok)
         .catch(rh.error);
     },
@@ -69,7 +69,15 @@ module.exports = function() {
     getOnlineAuctions: function(req, res) {
       var rh = new HTTPResponseHelper(req, res);
       business.setCurrentUser(req.currentUser);
-      business.getOnlineAuctions()
+      business.getOnlineAuctions(req.params.category)
+        .then(rh.ok)
+        .catch(rh.error);
+    },
+
+    getOpenAuctions: function(req, res) {
+      var rh = new HTTPResponseHelper(req, res);
+      business.setCurrentUser(req.currentUser);
+      business.getOpenAuctions(req.params.category)
         .then(rh.ok)
         .catch(rh.error);
     },

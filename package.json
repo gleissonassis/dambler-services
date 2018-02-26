@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "istanbul cover --reporter=html ./node_modules/mocha/bin/_mocha -- -R spec --recursive"
+    "test": "NODE_ENV=test istanbul cover --reporter=html ./node_modules/mocha/bin/_mocha -- -R spec --recursive"
   },
   "repository": {
     "type": "git",
@@ -39,8 +39,9 @@
     "mongodb": "^2.2.31",
     "mongoose": "^4.11.13",
     "morgan": "^1.8.2",
+    "nodemailer": "^4.4.2",
     "promise": "^8.0.1",
-    "request": "^2.81.0",
+    "request": "^2.83.0",
     "supertest": "^3.0.0",
     "winston": "^2.3.1"
   }

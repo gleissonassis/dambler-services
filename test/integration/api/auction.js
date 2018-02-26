@@ -120,12 +120,12 @@ describe('api', function(){
           .expect(403);
       });
 
-      it('should fail to perform GET the route /auctions/id without a token (403)', function() {
+      it('should not fail to perform GET the route /auctions/id without a token (404)', function() {
         return request(server)
           .get('/v1/auctions/objectid')
           .set('Accept', 'application/json')
           .expect('Content-Type', /json/)
-          .expect(403);
+          .expect(404);
       });
 
       it('should fail to perform DELETE to the route /auctions/id without a token (403)', function() {

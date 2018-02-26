@@ -1,5 +1,6 @@
 var Promise         = require('promise');
 var logger          = require('../config/logger');
+var mongoose        = require('mongoose');
 
 module.exports = function(dependencies) {
   var auctionDAO = dependencies.auctionDAO;
@@ -9,6 +10,7 @@ module.exports = function(dependencies) {
 
   return {
     currentUser: {},
+    dependencies: dependencies,
 
     setCurrentUser: function(currentUser) {
       this.currentUser = currentUser;
@@ -19,25 +21,83 @@ module.exports = function(dependencies) {
       return auctionDAO.clear();
     },
 
-    getAll: function(filter) {
+    parserAuction: function(item) {
+      var auction = modelParser.clear(item);
+      //the bid must start at least 0.01
+      auction.value = (auction.bids ? (auction.bids.length * 0.01) : 0) + 0.01;
+      //getting the last 10 bids
+      auction.bids.reverse();
+      auction.bids = auction.bids.slice(0, 10).map(function(item, index) {
+        item.index = index + 1;
+        return item;
+      });
+      auction.isExpired = new Date(auction.expiresOn).getTime() < new Date().getTime();
+      return auction;
+    },
+
+    getAll: function(category) {
+      var self = this;
+
       return new Promise(function(resolve, reject) {
-        filter.isEnabled = true;
-        auctionDAO.getAll(filter)
+        var chain = Promise.resolve();
+        var auctions = {
+          open: [],
+          closed: []
+        };
+
+        chain
+          .then(function() {
+            return self.getOpenAuctions(category);
+          })
+          .then(function(r) {
+            auctions.open = r;
+            return self.getClosedAuctions(category, 10);
+          })
+          .then(function(r) {
+            auctions.closed = r;
+            return auctions;
+          })
+          .then(resolve)
+          .catch(reject);
+      });
+    },
+
+    getOnlineAuctions: function(category) {
+      var self = this;
+
+      return new Promise(function(resolve, reject) {
+        auctionDAO.getOnlineAuctions(category)
           .then(function(r) {
             resolve(r.map(function(item) {
-              return modelParser.clear(item);
+              return self.parserAuction(item);
             }));
           })
           .catch(reject);
       });
     },
 
-    getOnlineAuctions: function() {
+    getOpenAuctions: function(category) {
+      var self = this;
+
       return new Promise(function(resolve, reject) {
-        auctionDAO.getOnlineAuctions()
+        auctionDAO.getOpenAuctions(category)
           .then(function(r) {
             resolve(r.map(function(item) {
-              return modelParser.clear(item);
+              return self.parserAuction(item);
+            }));
+          })
+          .catch(reject);
+      });
+    },
+
+    getClosedAuctions: function(category, limit) {
+      var self = this;
+
+      return new Promise(function(resolve, reject) {
+        auctionDAO.getClosedAuctions(category, limit)
+          .then(function(r) {
+            resolve(r.map(function(item) {
+              return self.parserAuction(item);
             }));
           })
           .catch(reject);
@@ -55,6 +115,10 @@ module.exports = function(dependencies) {
           //the expiresOn attribute is computed based on startDate and auction duration (in seconds)
           var startDate = new Date(o.startDate);
           o.expiresOn = new Date(startDate.getTime()).setSeconds(startDate.getSeconds() + o.duration);
+
+          //the bids array can not be modified directly by a request
+          //This arrya can be modified just by adding a new bid transaction
+          delete o.bids;
 
           logger.debug('Entity  after prepare: ', JSON.stringify(o));
           return auctionDAO.save(o)
@@ -76,7 +140,17 @@ module.exports = function(dependencies) {
       return new Promise(function(resolve, reject) {
         if (userHelper.isAdministrator(self.currentUser)) {
           logger.debug('Update the auction. Entity: ', JSON.stringify(entity));
+
           var o = modelParser.prepare(entity, false);
+
+          //the expiresOn attribute is computed based on startDate and auction duration (in seconds)
+          var startDate = new Date(o.startDate);
+          o.expiresOn = new Date(startDate.getTime()).setSeconds(startDate.getSeconds() + o.duration);
+
+          //the bids array can not be modified directly by a request
+          //This arrya can be modified just by adding a new bid transaction
+          delete o.bids;
+
           logger.debug('Entity  after prepare: ', JSON.stringify(o));
           return auctionDAO.update(o)
             .then(function(r) {
@@ -96,11 +170,12 @@ module.exports = function(dependencies) {
       var self = this;
 
       return new Promise(function(resolve, reject) {
-        if (userHelper.isAdministrator(self.currentUser)) {
-          return auctionDAO.getById(id)
+        if (mongoose.Types.ObjectId.isValid(id)) {
+          auctionDAO.getById(id, true)
             .then(function(r) {
               if (r) {
-                resolve(modelParser.clear(r));
+                var auction = self.parserAuction(r);
+                resolve(auction);
               } else {
                 throw {
                   status: 404,
@@ -111,7 +186,9 @@ module.exports = function(dependencies) {
             .catch(reject);
         } else {
           reject({
-            status: 401
+            status: 404,
+            message: 'Auction not found',
+            id: id
           });
         }
       });
@@ -160,6 +237,7 @@ module.exports = function(dependencies) {
                 message: 'Auction not found'
               };
             } else if (new Date(currentAuction.expiresOn).getTime() < now.getTime()) {
+              logger.warn('A bid was performed to a closed auction', currentAuction.expiresOn, now);
               throw {
                 status: 409,
                 message: 'This auction is not open for bids'
@@ -167,7 +245,6 @@ module.exports = function(dependencies) {
             } else {
               return userBO.addTransaction(userId, {
                 transactionType: 0,
-                date: new Date(),
                 coins: 1,
                 auctionId: auction.id,
                 description: 'Bid on ' + auction.product.name
@@ -175,7 +252,7 @@ module.exports = function(dependencies) {
             }
           })
           .then(function(user) {
-            auctionDAO.addBid(currentAuction, {
+            return auctionDAO.addBid(currentAuction, {
               user: {
                 id: user.id,
                 name: user.name
@@ -186,9 +263,11 @@ module.exports = function(dependencies) {
               userAgent: connectionInfo.userAgent
             });
           })
-          .then(function() {
-            resolve();
+          .then(function(r) {
+            logger.info('The bid transaction has beed done succesfully', JSON.stringify(r));
+            return true;
           })
+          .then(resolve)
           .catch(reject);
       });
     }

@@ -26,7 +26,12 @@ module.exports = function() {
           wallet: {
             coins: 0,
             averageValue: 0
-          }
+          },
+          confirmation: {
+            key: 'CONFIRMATION_KEY',
+            isConfirmed: false
+          },
+          internalKey: 'INTERNAL_KEY'
         })
         .then(resolve)
         .catch(function(error) {
