@@ -15,7 +15,7 @@ services:
     restart: always
     volumes:
       - .:/app
-      - ./private-settings.js:/app/src/config/settings.private.js
+      - ./settings.js:/app/src/config/settings.common.js
     build: .
     working_dir: /app
     command: bash ./start.sh
