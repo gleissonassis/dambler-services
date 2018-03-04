@@ -192,16 +192,16 @@ module.exports = function(dependencies) {
     parseStatusNotification: function(notification) {
       logger.info('Parsing an status notification. Notification: ', JSON.stringify(notification));
       var r = null;
-      switch (notification.newStatus) {
-        case 1:
-        case 2:
+      switch (notification.newStatus.toString()) {
+        case '1':
+        case '2':
           r = {
             code: 1,
             description: 'Waiting for payment'
           };
           break;
-        case 3:
-        case 4:
+        case '3':
+        case '4':
           r = {
             code: 2,
             description: 'Completed'
