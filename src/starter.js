@@ -24,7 +24,7 @@ module.exports = function() {
           password: '123456',
           role: 'admin',
           wallet: {
-            coins: 0,
+            coins: 10,
             averageValue: 0
           },
           confirmation: {

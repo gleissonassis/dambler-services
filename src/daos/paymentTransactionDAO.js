@@ -62,7 +62,7 @@ module.exports = function() {
 
         model.findByIdAndUpdate(entity._id, $.flatten(entity), {'new': true})
         .then(function(item) {
-          logger.log('info', 'The payment transaction has been updated succesfully');
+          logger.log('info', 'The payment transaction has been updated successfully');
           logger.debug(JSON.stringify(item.toObject()));
           resolve(item.toObject());
         }).catch(function(error) {

@@ -29,9 +29,6 @@ module.exports = function(app) {
   app.route('/v1/users/:id/login-history')
     .get(expressHelper.requireSameUser, controller.getLoginHistory);
 
-  app.route('/v1/users/:id/wallet/transactions')
-    .post(expressHelper.requireSameUser, controller.addTransaction);
-
   app.route('/v1/users/:id/confirm/:key')
     .post(controller.confirmUser);
 

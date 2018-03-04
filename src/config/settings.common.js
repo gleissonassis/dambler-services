@@ -27,14 +27,14 @@ module.exports = {
     payer: {
       auth: {
         email: 'admin@payer.com.br',
-        password: 'newPassword',
-        endpoint: 'http://localhost:5001/v1/users/auth'
+        password: 'new@passw0rd',
+        endpoint: 'http://payer.gdxconsulting.com.br/v1/users/auth'
       },
       appKey: 'dambler',
       pagSeguro: {
         currency: 'BRL',
         shippingType: 2
       },
-      endpoint: 'http://localhost:5001/v1/transactions'
+      endpoint: 'http://payer.gdxconsulting.com.br/v1/transactions'
     }
 };

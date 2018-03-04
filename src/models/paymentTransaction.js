@@ -27,6 +27,10 @@ module.exports = function(){
       type: Number,
       required: true,
     },
+    realPrice: {
+      type: Number,
+      required: false,
+    },
     date: {
       type: Date,
       required: true,
@@ -59,6 +63,25 @@ module.exports = function(){
         }
       }
     },
+    notifications: [{
+        status: {
+          type: Number,
+          required: true
+        },
+        price: {
+          type: Number,
+          required: true
+        },
+        data: {
+          type: Object,
+          required: false
+        },
+        date: {
+          type: Date,
+          required: true
+        }
+      }
+    ],
     isEnabled: {
       type: Boolean,
       required: true

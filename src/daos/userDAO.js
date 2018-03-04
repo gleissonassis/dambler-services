@@ -9,8 +9,7 @@ module.exports = function() {
     __v: false,
     isEnabled: false,
     loginHistory: false,
-    'wallet.transactions': false,
-    'wallet.averageValue': false
+    'wallet.transactions': false
   };
 
   projectionCommonWithWallet = {
@@ -247,22 +246,24 @@ module.exports = function() {
       });
     },
 
-    addTransaction: function(userId, transaction, newAvarageValue) {
+    addTransaction: function(userId, transaction, newAverageValue) {
       return new Promise(function(resolve, reject) {
-        logger.log('info', 'Adding to wallet the transaction');
-
-        logger.debug(transaction);
+        logger.log('info', 'Adding to wallet the transaction', JSON.stringify(transaction));
+        logger.debug('New average value', newAverageValue);
 
         var options = {
-          $push: {'wallet.transactions': transaction},
-          $inc: {'wallet.coins': transaction.transactionType === 1 ? transaction.coins : -transaction.coins}
+          $push: {
+            'wallet.transactions': transaction
+          },
+          $inc: {
+            'wallet.coins': transaction.transactionType === 1 ? transaction.coins : -transaction.coins
+          },
+          $set: {
+            'wallet.averageValue': newAverageValue
+          }
         };
 
-        if (newAvarageValue !== undefined) {
-          options['$set'] = {
-            'wallet.averageValue': newAvarageValue
-          };
-        }
+        logger.debug('Options:', JSON.stringify(options));
 
         model.findByIdAndUpdate(userId, options, {'new': true, fields: projectionCommonWithWallet})
           .then(function(item) {

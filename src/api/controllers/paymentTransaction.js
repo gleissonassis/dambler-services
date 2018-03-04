@@ -43,6 +43,14 @@ module.exports = function() {
         .catch(rh.error);
     },
 
+    parseNotification: function(req, res) {
+      var rh = new HTTPResponseHelper(req, res);
+      business.parseNotification(req.body)
+        .then(rh.ok)
+        .catch(rh.error);
+    },
+
+
     getById: function(req, res) {
       var rh = new HTTPResponseHelper(req, res);
       business.getById(req.params.id)

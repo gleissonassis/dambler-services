@@ -333,53 +333,42 @@ module.exports = function(dependencies) {
     },
 
     addTransaction: function(userId, transaction) {
-      var self = this;
-
       return new Promise(function(resolve, reject) {
         userDAO.getById(userId, true)
           .then(function(user) {
             if (user) {
-              if (!userHelper.isAdministrator(self.currentUser) && self.currentUser.id !== user._id.toString()) {
-                throw {
-                  status: 404,
-                  message: 'Please check if the provided user exists. User not found.'
-                };
-              } else if (!userHelper.isAdministrator(self.currentUser) && transaction.transactionType === 1) {
-                //only administrators can add founds to user's wallet
-                throw {
-                  status: 401
-                };
-              } else {
-                var newAvarageValue = undefined;
+              var newAverageValue = undefined;
 
-                //if the transaction is credit it is necessary to calculate the
-                //new averageValue value for the user's wallet, however if the
-                //transaction is the first in the wallet the averageValue value will
-                //be itself
-                if (transaction.transactionType === 1) {
-                  if (user.wallet.averageValue === 0 && user.wallet.coins === 0) {
-                    newAvarageValue = transaction.averageValue;
-                  } else {
-                    newAvarageValue = (user.wallet.averageValue + transaction.averageValue) / 2;
-                  }
-                } else if (transaction.transactionType === 0) {
-                  if (user.wallet.coins === 0) {
-                    throw {
-                      status: 409,
-                      code: 2,
-                      message: 'The user do not have any coins to perform a bid'
-                    };
-                  } else {
-                    //if the transaction is debit the averageValue is the same that the wallet
-                    transaction.averageValue = user.wallet.averageValue;
-                  }
+              logger.info('User wallet', JSON.stringify(user.wallet));
+
+              //if the transaction is credit it is necessary to calculate the
+              //new averageValue value for the user's wallet, however if the
+              //transaction is the first in the wallet the averageValue value will
+              //be itself
+              if (transaction.transactionType === 1) {
+                if (user.wallet.averageValue === 0 && user.wallet.coins === 0) {
+                  newAverageValue = transaction.averageValue;
+                } else {
+                  newAverageValue = (user.wallet.averageValue + transaction.averageValue) / 2;
                 }
-
-                transaction.date = new Date();
-
-                //sending newAvarageValue as undefined the value will not be changed at the database
-                return userDAO.addTransaction(userId, transaction, newAvarageValue);
+              } else if (transaction.transactionType === 0) {
+                if (user.wallet.coins === 0) {
+                  throw {
+                    status: 409,
+                    code: 2,
+                    message: 'The user do not have any coins to perform a bid'
+                  };
+                } else {
+                  //if the transaction is debit the averageValue is the same that the wallet
+                  newAverageValue = user.wallet.averageValue;
+                }
               }
+
+              logger.info('New user wallet average value', newAverageValue);
+
+              transaction.date = new Date();
+
+              return userDAO.addTransaction(userId, transaction, newAverageValue);
             } else {
               throw {
                 status: 404,

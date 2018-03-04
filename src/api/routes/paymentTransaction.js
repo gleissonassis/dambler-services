@@ -7,6 +7,9 @@ module.exports = function(app) {
   app.route('/v1/payments-transactions')
     .post(expressHelper.requireLogin, controller.save);
 
+  app.route('/v1/payments-transactions/notifications')
+    .post(expressHelper.requireLogin, controller.parseNotification);
+
   app.route('/v1/payments-transactions/:id')
     .get(expressHelper.requireLogin, controller.getById);
 };

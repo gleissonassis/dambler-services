@@ -135,22 +135,20 @@ describe('api', function(){
       });
   });
 
-  describe('/v1/payments-transactions', function(){
+  describe('/v1/payments-transactions', function() {
     it('should store a new payment transaction', function() {
       this.timeout(5000);
 
       return request(server)
         .post('/v1/payments-transactions')
         .send({
-          coinPackageId: coinPackage.id,
+          coinPackageId: coinPackage.id
         })
         .set('Accept', 'application/json')
         .set('Authorization', 'Bearer ' + user.token)
         .expect('Content-Type', /json/)
         .expect(201)
         .then(function(res) {
-          console.log(res.body);
-          expect(true).to.be.true;
           expect(res.body).to.have.property('id');
           expect(res.body.coinPackageId).to.be.equal(coinPackage.id);
           expect(res.body.coins).to.be.equal(coinPackage.coins);
@@ -164,6 +162,81 @@ describe('api', function(){
           expect(res.body.status.description).to.be.equal('Waiting for payment');
           expect(res.body.user.id).to.be.equal(user.id);
           expect(res.body.user.name).to.be.equal(user.name);
+        });
+    });
+  });
+
+  describe('/v1/payments-transactions', function() {
+    it('should update a payment transaction when a notification has been received', function() {
+      var paymentTransaction = null;
+      this.timeout(5000);
+
+      return request(server)
+        .post('/v1/payments-transactions')
+        .send({
+          coinPackageId: coinPackage.id,
+        })
+        .set('Accept', 'application/json')
+        .set('Authorization', 'Bearer ' + user.token)
+        .expect('Content-Type', /json/)
+        .expect(201)
+        .then(function(res) {
+          paymentTransaction = res.body;
+
+          return request(server)
+            .post('/v1/payments-transactions/notifications')
+            .send({
+              transactionId: paymentTransaction.id,
+              newStatus: 3,
+              realPrice: 390,
+              data: {
+                test: true
+              }
+            })
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + adminUser.token)
+            .expect('Content-Type', /json/)
+            .expect(200);
+        })
+        .then(function() {
+          return request(server)
+            .get('/v1/users/me')
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + user.token);
+        })
+        .then(function(res) {
+          var wallet = res.body.wallet;
+          expect(wallet.coins).to.be.equal(500);
+          expect(wallet.averageValue).to.be.equal(0.78);
+
+          //at this point the wallet credits was stored, but when
+          //a problem was reported those credits must be removed
+
+          return request(server)
+            .post('/v1/payments-transactions/notifications')
+            .send({
+              transactionId: paymentTransaction.id,
+              newStatus: 6,
+              realPrice: 390,
+              data: {
+                test: true
+              }
+            })
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + adminUser.token)
+            .expect('Content-Type', /json/)
+            .expect(200);
+        })
+        .then(function() {
+          return request(server)
+            .get('/v1/users/me')
+            .set('Accept', 'application/json')
+            .set('Authorization', 'Bearer ' + user.token);
+        })
+        .then(function(res) {
+          console.log(res.body);
+          var wallet = res.body.wallet;
+          expect(wallet.coins).to.be.equal(0);
         });
     });
   });

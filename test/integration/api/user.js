@@ -266,68 +266,6 @@ describe('api', function(){
         });
     });
 
-    it('should fail to store a transaction to a empyt wallet', function() {
-      var token = null;
-      var id = null;
-      return request(server)
-        .post('/v1/users/auth')
-        .send({
-          email: 'newemail@gmail.com',
-          password: '123456'
-        })
-        .set('Accept', 'application/json')
-        .expect('Content-Type', /json/)
-        .expect(200)
-        .then(function(res){
-          token = res.body.token;
-          id = res.body.id;
-
-          return request(server)
-            .post('/v1/users/' + id + '/wallet/transactions')
-            .send({
-              transactionType: 0,
-              coins: 10,
-              averageValue: 1,
-              description: 'Transaction'
-            })
-            .set('Accept', 'application/json')
-            .set('Authorization', 'Bearer ' + token)
-            .expect('Content-Type', /json/)
-            .expect(409);
-        });
-    });
-
-    it('should fail to store a credit transaction without a valid admin token', function() {
-      var token = null;
-      var id = null;
-      return request(server)
-        .post('/v1/users/auth')
-        .send({
-          email: 'newemail@gmail.com',
-          password: '123456'
-        })
-        .set('Accept', 'application/json')
-        .expect('Content-Type', /json/)
-        .expect(200)
-        .then(function(res){
-          token = res.body.token;
-          id = res.body.id;
-
-          return request(server)
-            .post('/v1/users/' + id + '/wallet/transactions')
-            .send({
-              transactionType: 1,
-              coins: 10,
-              averageValue: 1,
-              description: 'Transaction'
-            })
-            .set('Accept', 'application/json')
-            .set('Authorization', 'Bearer ' + token)
-            .expect('Content-Type', /json/)
-            .expect(401);
-        });
-    });
-
     it('should remove an user with a valid token', function() {
       var token = null;
       var id = null;

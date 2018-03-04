@@ -1,0 +1,33 @@
+version: '3'
+networks:
+  db:
+  web:
+services:
+  db:
+    image: mongo:3.4.10
+    restart: always
+    volumes:
+      - ./data:/data/db
+    networks:
+      - db
+  services:
+    image: node:9.2.0
+    restart: always
+    volumes:
+      - .:/app
+      - ./private-settings.js:/app/src/config/settings.private.js
+    build: .
+    working_dir: /app
+    command: bash ./start.sh
+    ports:
+      - 5000:5000
+    networks:
+      - web
+      - db
+    depends_on:
+      - db
+    environment:
+      - NODE_ENV=production
+      - DB_SERVER=db
+      - DB_NAME=dambler-services
+      - PORT=5000

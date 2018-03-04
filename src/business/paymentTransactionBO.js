@@ -93,17 +93,78 @@ module.exports = function(dependencies) {
       });
     },
 
-    update: function(entity) {
+    parseNotification: function(entity) {
+      var self = this;
+
       return new Promise(function(resolve, reject) {
+        logger.info('Parsing a notification from payer system: ', JSON.stringify(entity));
+
         var chain = Promise.resolve();
-        var o = modelParser.prepare(entity, false);
+        var paymentTransaction = null;
+        var previousStatus = null;
 
         chain
           .then(function() {
+            logger.info('Getting the payment transaction by the id', entity.transactionId);
+            return self.getById(entity.transactionId);
+          })
+          .then(function(r) {
+            paymentTransaction = r;
+            previousStatus = paymentTransaction.status;
+            return r;
+          })
+          .then(function() {
+            if (!paymentTransaction.notifications) {
+              paymentTransaction.notifications = [];
+            }
+
+            logger.info('Updating the payment transaction to store the new notification and the reference values');
+            paymentTransaction.notifications.push({
+              status: entity.newStatus,
+              price: entity.realPrice,
+              data: entity.data,
+              date: new Date()
+            });
+
+            paymentTransaction.realPrice = entity.realPrice;
+            paymentTransaction.status = self.parseStatusNotification(entity);
+
+            logger.debug(JSON.stringify(paymentTransaction));
+
+            return paymentTransaction;
+          })
+          .then(function(r) {
+            var o = modelParser.prepare(r);
             return paymentTransactionDAO.update(o);
           })
           .then(function(r) {
-            return modelParser.clear(r);
+            logger.info('Payment transaction updated successfully', JSON.stringify(r));
+
+            if (paymentTransaction.status.code === 2) {
+              var averageValue = paymentTransaction.realPrice / paymentTransaction.coins;
+              logger.debug('The user wallet will be update to receive the new coins',
+                paymentTransaction.coins,
+                averageValue);
+
+              return userBO.addTransaction(paymentTransaction.user.id, {
+                transactionType: 1,
+                coins: paymentTransaction.coins,
+                averageValue: paymentTransaction.realPrice / paymentTransaction.coins,
+                description: 'A payment was proccessed'
+              });
+            } else if (paymentTransaction.status.code === 3 && previousStatus.code === 2) {
+              logger.debug('The user wallet will be update to remove the coins previously credited',
+                paymentTransaction.coins);
+              return userBO.addTransaction(paymentTransaction.user.id, {
+                transactionType: 0,
+                coins: paymentTransaction.coins,
+                averageValue: paymentTransaction.realPrice / paymentTransaction.coins,
+                description: 'A withdraw was performed in you wallet because a problem was identified'
+              });
+            }
+          })
+          .then(function() {
+            return paymentTransaction;
           })
           .then(resolve)
           .catch(reject);
@@ -126,6 +187,37 @@ module.exports = function(dependencies) {
           .then(resolve)
           .catch(reject);
       });
+    },
+
+    parseStatusNotification: function(notification) {
+      logger.info('Parsing an status notification. Notification: ', JSON.stringify(notification));
+      var r = null;
+      switch (notification.newStatus) {
+        case 1:
+        case 2:
+          r = {
+            code: 1,
+            description: 'Waiting for payment'
+          };
+          break;
+        case 3:
+        case 4:
+          r = {
+            code: 2,
+            description: 'Completed'
+          };
+          break;
+        default:
+          r = {
+            code: 3,
+            description: 'Problem'
+          };
+          break;
+      }
+
+      logger.info('Parsed status notification: ', JSON.stringify(r));
+
+      return r;
     }
   };
 };
