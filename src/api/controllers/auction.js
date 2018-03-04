@@ -1,5 +1,5 @@
 var AuctionBO             = require('../../business/auctionBO');
-var UserBO                = require('../../business/UserBO');
+var UserBO                = require('../../business/userBO');
 var DAOFactory            = require('../../daos/daoFactory');
 var HTTPResponseHelper    = require('../../helpers/httpResponseHelper');
 var ModelParser           = require('../../models/modelParser');
